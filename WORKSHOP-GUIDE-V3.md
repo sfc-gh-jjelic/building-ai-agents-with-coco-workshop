@@ -503,5 +503,6 @@ monitors, and per-user quotas work identically on any agent you build.
 - [FinOps for AI: Snowflake's cost management tools (blog)](https://www.snowflake.com/en/blog/ai-finops-cost-management-governance-snowflake/)
 - [Cortex AI Gateway announcement (Black Hat 2026)](https://www.snowflake.com/en/blog/enterprise-ai-security-agentic-mcp-governance/)
 - [Snowflake-managed MCP Server docs](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-mcp)
-- [CoCo CLI documentation](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-snowsight)
+- [CoCo Desktop documentation](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-desktop)
+- [CoCo CLI documentation](https://docs.snowflake.com/en/user-guide/cortex-code/cortex-code-cli)
 - [Workshop repo](https://github.com/sfc-gh-rbachala/building-ai-agents-with-coco-workshop)
