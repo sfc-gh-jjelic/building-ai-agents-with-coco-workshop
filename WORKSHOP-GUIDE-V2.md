@@ -153,6 +153,51 @@ move straight to Step 2. The load runs server-side inside Snowflake.
 > [`CHECKPOINTS.sql`](CHECKPOINTS.sql) in a Snowsight worksheet in parallel. Same
 > result, less friction.
 
+### Create the workshop role
+
+While the data loads, create a least-privilege role for the rest of the workshop.
+**Run this in a Snowsight worksheet** (it needs ACCOUNTADMIN):
+
+```sql
+USE ROLE ACCOUNTADMIN;
+SET MY_USER = CURRENT_USER();
+CREATE ROLE IF NOT EXISTS GITTREND_MCP_ROLE;
+GRANT ROLE GITTREND_MCP_ROLE TO USER IDENTIFIER($MY_USER);
+
+-- Database + schema + warehouse access
+GRANT USAGE ON DATABASE GITTREND_DB TO ROLE GITTREND_MCP_ROLE;
+GRANT ALL PRIVILEGES ON SCHEMA GITTREND_DB.PUBLIC TO ROLE GITTREND_MCP_ROLE;
+GRANT USAGE ON WAREHOUSE WORKSHOP_WH TO ROLE GITTREND_MCP_ROLE;
+
+-- Table access (existing + future)
+GRANT SELECT ON ALL TABLES IN SCHEMA GITTREND_DB.PUBLIC TO ROLE GITTREND_MCP_ROLE;
+GRANT SELECT ON FUTURE TABLES IN SCHEMA GITTREND_DB.PUBLIC TO ROLE GITTREND_MCP_ROLE;
+
+-- DDL privileges for workshop objects
+GRANT CREATE TABLE ON SCHEMA GITTREND_DB.PUBLIC TO ROLE GITTREND_MCP_ROLE;
+GRANT CREATE VIEW ON SCHEMA GITTREND_DB.PUBLIC TO ROLE GITTREND_MCP_ROLE;
+GRANT CREATE STAGE ON SCHEMA GITTREND_DB.PUBLIC TO ROLE GITTREND_MCP_ROLE;
+
+-- Cortex AI + agent features
+GRANT DATABASE ROLE SNOWFLAKE.CORTEX_USER TO ROLE GITTREND_MCP_ROLE;
+GRANT CREATE CORTEX SEARCH SERVICE ON SCHEMA GITTREND_DB.PUBLIC TO ROLE GITTREND_MCP_ROLE;
+GRANT CREATE AGENT ON SCHEMA GITTREND_DB.PUBLIC TO ROLE GITTREND_MCP_ROLE;
+GRANT CREATE MCP SERVER ON SCHEMA GITTREND_DB.PUBLIC TO ROLE GITTREND_MCP_ROLE;
+```
+
+Now update your `AGENTS.md` — change the Role line to:
+
+```
+Role: GITTREND_MCP_ROLE
+```
+
+From this point on, CoCo uses the workshop role, not ACCOUNTADMIN.
+
+> **Why a dedicated role?** ACCOUNTADMIN is only needed for the one-time setup
+> (creating the database, warehouse, and security integration). Everything
+> else — views, agents, MCP servers — runs with `GITTREND_MCP_ROLE`. This
+> follows Snowflake's recommended least-privilege pattern for MCP OAuth.
+
 ---
 
 # Step 2 — Build the GitTrend Agent
@@ -322,12 +367,17 @@ MCP clients authenticate via OAuth. The redirect URI below is for **claude.ai
 use theirs instead.
 
 ```sql
+-- Security integrations require ACCOUNTADMIN
+USE ROLE ACCOUNTADMIN;
+
 CREATE OR REPLACE SECURITY INTEGRATION GITTREND_MCP_OAUTH
   TYPE = OAUTH
   OAUTH_CLIENT = CUSTOM
   ENABLED = TRUE
   OAUTH_CLIENT_TYPE = 'CONFIDENTIAL'
-  OAUTH_REDIRECT_URI = 'https://claude.ai/api/mcp/auth_callback';
+  OAUTH_REDIRECT_URI = 'https://claude.ai/api/mcp/auth_callback'
+  OAUTH_USE_SECONDARY_ROLES = NONE
+  ALLOWED_ROLES_LIST = ('GITTREND_MCP_ROLE');
 ```
 
 Get your client credentials — **save these now**, you need them in Part 3:
@@ -340,7 +390,7 @@ Save the `OAUTH_CLIENT_ID` and `OAUTH_CLIENT_SECRET`.
 Set your default role and warehouse (required for MCP OAuth sessions):
 ```sql
 SET MY_USER = CURRENT_USER();
-ALTER USER IDENTIFIER($MY_USER) SET DEFAULT_ROLE = 'ACCOUNTADMIN' DEFAULT_WAREHOUSE = 'WORKSHOP_WH';
+ALTER USER IDENTIFIER($MY_USER) SET DEFAULT_ROLE = 'GITTREND_MCP_ROLE' DEFAULT_WAREHOUSE = 'WORKSHOP_WH';
 ```
 
 ### Part 3 — Connect a client
